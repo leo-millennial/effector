@@ -47,6 +47,10 @@ function install(app: App, options?: EffectorScopePluginOptions) {
   }
 
   const scope = markRaw(options.scope)
+  /**
+   * `ssr` is stored, not read: the composables have no server render branch to
+   * override yet. It stays in the config so that branch finds it in place.
+   */
   const {scopeName = 'root', forceScope, ssr} = options
 
   app.provide(EffectorScopeKey, scope)

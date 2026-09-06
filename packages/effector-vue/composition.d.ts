@@ -131,7 +131,10 @@ export type EffectorScopePluginOptions = {
   scopeName?: string
   /** Applies forceScope to every composable call of the application. */
   forceScope?: boolean
-  /** Overrides the server render detection of the SSR-aware composables. */
+  /**
+   * Reserved for the server render detection of the composables. Accepted and
+   * stored, but nothing reads it yet: the composables have no SSR branch.
+   */
   ssr?: boolean
 }
 
