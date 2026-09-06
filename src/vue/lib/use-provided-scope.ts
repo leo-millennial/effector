@@ -1,6 +1,6 @@
 import {Scope} from 'effector'
 
-import {resolveScope} from './lib/get-scope'
+import {resolveScope} from './get-scope'
 
 export function useProvidedScope(opts: {forceScope: true}): Scope
 export function useProvidedScope(opts?: {forceScope?: boolean}): Scope | null
