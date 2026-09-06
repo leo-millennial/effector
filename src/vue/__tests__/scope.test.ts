@@ -107,6 +107,23 @@ describe('scope resolution', () => {
     expect(value.value).toBe('legacy')
   })
 
+  test('EffectorScopeKey wins over the legacy string key', () => {
+    const $value = createStore('global')
+    const keyed = fork({values: [[$value, 'keyed']]})
+    const legacy = fork({values: [[$value, 'legacy']]})
+
+    const value = withSetup(() => useUnit($value), [
+      legacyPlugin(legacy, 'custom'),
+      {
+        install(app) {
+          app.provide(EffectorScopeKey, keyed)
+        },
+      },
+    ])
+
+    expect(value.value).toBe('keyed')
+  })
+
   test('falls back to the global mode without a provided scope', () => {
     const $value = createStore('global')
 
