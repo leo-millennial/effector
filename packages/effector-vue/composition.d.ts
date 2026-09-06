@@ -14,7 +14,10 @@ import {Domain, Store, Event, Effect, Scope} from 'effector'
 export type ScopeOptions = {
   /** Scope to read stores from and to bind events to. */
   scope?: Scope
-  /** Throw when no scope is resolved instead of falling back to global mode. */
+  /**
+   * Throw when no scope is resolved instead of falling back to global mode.
+   * Overrides the plugin value for this call, true or false.
+   */
   forceScope?: boolean
 }
 
@@ -127,9 +130,9 @@ export function useUnit<
 
 export type EffectorScopePluginOptions = {
   scope: Scope
-  /** @deprecated legacy string injection key, kept for 23.x */
+  /** Legacy string injection key the scope is also provided under. */
   scopeName?: string
-  /** Applies forceScope to every composable call of the application. */
+  /** Default forceScope for every composable call that does not pass its own. */
   forceScope?: boolean
 }
 

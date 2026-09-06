@@ -232,6 +232,8 @@ describe('useStore', () => {
     const setup = () => {
       const count = useStore($count)
       const value: number = count.value
+      const scoped = useStore($count, {scope: fork(), forceScope: true})
+      const scopedValue: number = scoped.value
     }
 
     expect(typecheck).toMatchInlineSnapshot(`

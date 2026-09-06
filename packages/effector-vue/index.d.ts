@@ -169,9 +169,9 @@ declare function createComponent<
 
 type EffectorScopePluginOptions = {
   scope: Scope
-  /** @deprecated legacy string injection key, kept for 23.x */
+  /** Legacy string injection key the scope is also provided under. */
   scopeName?: string
-  /** Applies forceScope to every composable call of the application. */
+  /** Default forceScope for every composable call that does not pass its own. */
   forceScope?: boolean
 }
 
