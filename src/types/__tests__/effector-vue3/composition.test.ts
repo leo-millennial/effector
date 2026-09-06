@@ -174,7 +174,6 @@ describe('scope', () => {
           scope,
           scopeName: 'app',
           forceScope: true,
-          ssr: false,
         }),
       )
       app.use(EffectorScopePlugin, {scope})

@@ -13,8 +13,6 @@ export const EffectorScopeKey = Symbol.for(
 export type EffectorScopeConfig = {
   /** Turns the absence of a scope into an error for the whole application. */
   forceScope?: boolean
-  /** Reserved for the server render detection; no composable reads it yet. */
-  ssr?: boolean
   /** Legacy string key the scope is provided under as well. */
   scopeName?: string
 }

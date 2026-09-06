@@ -8,7 +8,6 @@ export type EffectorScopePluginOptions = {
   scope: Scope
   scopeName?: string
   forceScope?: boolean
-  ssr?: boolean
 }
 
 export function EffectorScopePlugin(options: EffectorScopePluginOptions): Plugin
@@ -47,23 +46,17 @@ function install(app: App, options?: EffectorScopePluginOptions) {
   }
 
   const scope = markRaw(options.scope)
-  /**
-   * `ssr` is stored, not read: the composables have no server render branch to
-   * override yet. It stays in the config so that branch finds it in place.
-   */
-  const {scopeName = 'root', forceScope, ssr} = options
+  const {scopeName = 'root', forceScope} = options
 
   app.provide(EffectorScopeKey, scope)
-  app.provide(EffectorScopeConfigKey, {forceScope, ssr, scopeName})
+  app.provide(EffectorScopeConfigKey, {forceScope, scopeName})
 
   /**
    * The scope used to be provided under a string key read from
    * `globalProperties.scopeName`; both are kept for applications and plugins
-   * written against that contract. Vue 2 has no `globalProperties`.
+   * written against that contract.
    */
-  try {
-    app.config.globalProperties.scopeName = scopeName
-  } catch (err) {}
+  app.config.globalProperties.scopeName = scopeName
   app.provide(scopeName, scope)
 }
 
