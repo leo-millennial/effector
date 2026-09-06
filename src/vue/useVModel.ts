@@ -3,7 +3,7 @@ import {type EffectScope, reactive, ref, watch, effectScope, onScopeDispose, toR
 
 import {deepCopy} from './lib/deepCopy'
 import {stateReader} from './lib/state-reader'
-import {getScope} from './lib/get-scope'
+import {resolveScope} from './lib/get-scope'
 import {UseVModel} from 'effector-vue/composition'
 
 function createVModel<T>(
@@ -13,7 +13,7 @@ function createVModel<T>(
 ) {
   if (!is.store(store)) throw Error('expect useVModel argument to be a store')
 
-  const {scope} = getScope()
+  const scope = resolveScope('useVModel') ?? undefined
 
   const _ = ref(deepCopy(stateReader(store, scope)))
 

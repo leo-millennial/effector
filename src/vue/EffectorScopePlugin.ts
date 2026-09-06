@@ -1,16 +1,73 @@
-import {Scope} from 'effector'
-import {Plugin} from 'vue-next'
+import {Scope, is} from 'effector'
+import {App, Plugin, markRaw} from 'vue-next'
 
-export function EffectorScopePlugin(options: {
+import {EffectorScopeConfigKey, EffectorScopeKey} from './lib/scope-key'
+import {throwError} from './lib/throw'
+
+export type EffectorScopePluginOptions = {
   scope: Scope
   scopeName?: string
-}): Plugin {
-  return {
-    install(app) {
-      let scopeName = options.scopeName ?? 'root'
+  forceScope?: boolean
+  ssr?: boolean
+}
 
-      app.config.globalProperties.scopeName = scopeName
-      app.provide(app.config.globalProperties.scopeName, options.scope)
+export function EffectorScopePlugin(options: EffectorScopePluginOptions): Plugin
+export function EffectorScopePlugin(
+  app: App,
+  options: EffectorScopePluginOptions,
+): void
+export function EffectorScopePlugin(
+  appOrOptions: any,
+  maybeOptions?: EffectorScopePluginOptions,
+): any {
+  /**
+   * `app.use(EffectorScopePlugin, {scope})` calls the plugin as a function
+   * with the application first; that form used to install nothing at all.
+   * `app.use(EffectorScopePlugin({scope}))` stays the documented one.
+   */
+  if (isApp(appOrOptions)) {
+    install(appOrOptions, maybeOptions)
+    return
+  }
+
+  const options = appOrOptions as EffectorScopePluginOptions
+
+  return {
+    install(app: App) {
+      install(app, options)
     },
   }
+}
+
+function install(app: App, options?: EffectorScopePluginOptions) {
+  if (!options || !is.scope(options.scope)) {
+    throwError(
+      'EffectorScopePlugin: expected "scope" to be a Scope created by fork()',
+    )
+  }
+
+  const scope = markRaw(options.scope)
+  const {scopeName = 'root', forceScope, ssr} = options
+
+  app.provide(EffectorScopeKey, scope)
+  app.provide(EffectorScopeConfigKey, {forceScope, ssr, scopeName})
+
+  /**
+   * The scope used to be provided under a string key read from
+   * `globalProperties.scopeName`; both are kept for applications and plugins
+   * written against that contract. Vue 2 has no `globalProperties`.
+   */
+  try {
+    app.config.globalProperties.scopeName = scopeName
+  } catch (err) {}
+  app.provide(scopeName, scope)
+}
+
+function isApp(value: any): value is App {
+  return (
+    !!value &&
+    typeof value.provide === 'function' &&
+    typeof value.use === 'function' &&
+    !!value.config
+  )
 }
