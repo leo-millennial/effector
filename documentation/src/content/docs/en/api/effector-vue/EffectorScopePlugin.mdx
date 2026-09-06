@@ -69,7 +69,18 @@ The option is read through the injection context, so it covers the calls that se
 
 # How the scope is resolved (#resolution)
 
-Every composable takes an optional `{ scope, forceScope }` object as its last argument and resolves the scope in this order:
+Where the scope options go differs between the composables:
+
+| Composable                    | Scope options                                                                                                |
+| ----------------------------- | ------------------------------------------------------------------------------------------------------------ |
+| `useUnit(unit, opts)`         | `{ scope, forceScope }` as the last argument                                                                   |
+| `useStore($store, opts)`      | `{ scope, forceScope }` as the last argument                                                                   |
+| `useGate(Gate, props, opts)`  | `{ scope, forceScope }` as the last argument                                                                   |
+| `useStoreMap(config)`         | `scope` and `forceScope` in the config; the positional second argument is deprecated                           |
+| `useProvidedScope(opts)`      | `{ forceScope }` only                                                                                          |
+| `useVModel($store, vueScope)` | none: the second argument is a Vue [EffectScope](https://vuejs.org/api/reactivity-advanced.html#effectscope)   |
+
+Whatever the form, the scope is resolved in this order:
 
 1. the `scope` option of the call;
 2. the value provided under `EffectorScopeKey`, if the current call has an injection context;
