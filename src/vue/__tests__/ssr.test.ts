@@ -3,6 +3,7 @@ import {
   EffectorScopePlugin,
   useProvidedScope,
   useStore,
+  useStoreMap,
   useUnit,
 } from 'effector-vue/composition'
 import {
@@ -63,6 +64,43 @@ describe('server render', () => {
 
     expect(html).toBe('<p>scoped</p>')
     expect(linksCount(scope)).toBe(0)
+  })
+
+  test('useStoreMap selects the state of the scope', async () => {
+    const $user = createStore({name: 'global'})
+    const scope = fork({values: [[$user, {name: 'scoped'}]]})
+
+    const App = defineComponent({
+      setup() {
+        const name = useStoreMap({store: $user, fn: user => user.name})
+        return () => h('p', name.value)
+      },
+    })
+
+    const html = await renderSSR(App, {scope})
+
+    expect(html).toBe('<p>scoped</p>')
+    expect(linksCount(scope)).toBe(0)
+  })
+
+  test('useStoreMap selects the data loaded in onServerPrefetch', async () => {
+    const loadFx = createEffect(async () => ({name: 'loaded'}))
+    const $user = createStore({name: 'empty'}).on(
+      loadFx.doneData,
+      (_, user) => user,
+    )
+    const scope = fork()
+
+    const App = defineComponent({
+      setup() {
+        const name = useStoreMap({store: $user, fn: user => user.name})
+        const appScope = useProvidedScope({forceScope: true})
+        onServerPrefetch(() => allSettled(loadFx, {scope: appScope}))
+        return () => h('p', name.value)
+      },
+    })
+
+    expect(await renderSSR(App, {scope})).toBe('<p>loaded</p>')
   })
 
   test('renders the data loaded in onServerPrefetch', async () => {

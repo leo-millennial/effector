@@ -1,5 +1,11 @@
 import * as VueModule from 'vue-next'
-import {InjectionKey, getCurrentInstance} from 'vue-next'
+import {
+  InjectionKey,
+  MaybeRefOrGetter,
+  Ref,
+  getCurrentInstance,
+  unref,
+} from 'vue-next'
 
 /**
  * `hasInjectionContext` is Vue 3.3+, while the package declares `vue: "*"` as
@@ -10,6 +16,7 @@ import {InjectionKey, getCurrentInstance} from 'vue-next'
 const VueRuntime = VueModule as {
   hasInjectionContext?: () => boolean
   ssrContextKey?: symbol
+  toValue?: <T>(source: MaybeRefOrGetter<T>) => T
 }
 
 export function hasInjectionContext(): boolean {
@@ -17,6 +24,18 @@ export function hasInjectionContext(): boolean {
     return VueRuntime.hasInjectionContext()
   }
   return Boolean(getCurrentInstance())
+}
+
+/**
+ * `toValue` is Vue 3.3+ as well. The fallback is the whole of it: a getter is
+ * called, a ref is unwrapped, anything else is already a value.
+ */
+export function toValue<T>(source: MaybeRefOrGetter<T>): T {
+  if (typeof VueRuntime.toValue === 'function') return VueRuntime.toValue(source)
+
+  return typeof source === 'function'
+    ? (source as () => T)()
+    : unref(source as Ref<T>)
 }
 
 /**

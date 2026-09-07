@@ -1,67 +1,144 @@
-import { createWatch, is, Scope, Store } from "effector";
-import { computed, onUnmounted, shallowReactive, shallowRef } from "vue-next";
-import { ScopeOptions, resolveScope } from "./lib/get-scope";
-import { stateReader } from "./lib/state-reader";
-import { devWarn, throwError } from "./lib/throw";
+import {Scope, Store, is} from 'effector'
+import {
+  ComputedRef,
+  MaybeRefOrGetter,
+  Ref,
+  computed,
+  shallowRef,
+  watch,
+} from 'vue-next'
 
-const basicUpdateFilter = <T>(upd: T, oldValue: T) => upd !== oldValue
+import {ScopeOptions, resolveScope} from './lib/get-scope'
+import {isServerRender} from './lib/ssr'
+import {stateReader} from './lib/state-reader'
+import {devWarn, throwError} from './lib/throw'
+import {toValue} from './lib/vue-compat'
+import {useUnitBase} from './useUnit'
 
-export function useStoreMap<State, Result, Keys = unknown>(
-  config: {
-    store: Store<State>;
-    keys?: () => Keys;
-    fn: (state: State, keys: Keys) => Result;
-    updateFilter?: (update: Result, current: Result) => boolean;
-    defaultValue?: Result;
-  } & ScopeOptions,
+const basicUpdateFilter = <T>(update: T, current: T) => update !== current
+
+const DEPRECATED_SCOPE =
+  'useStoreMap: the positional scope argument is deprecated, pass it in the ' +
+  'config as {scope} instead'
+
+export type UseStoreMapConfig<State, Result, Keys> = {
+  store: Store<State>
+  keys?: MaybeRefOrGetter<Keys>
+  fn: (state: State, keys: Keys) => Result
+  updateFilter?: (update: Result, current: Result) => boolean
+  defaultValue?: Result
+} & ScopeOptions
+
+export function useStoreMap<State, Result, Keys = void>(
+  config: UseStoreMapConfig<State, Result, Keys>,
   /** @deprecated pass the scope in the config instead */
-  scope?: Scope
-) {
-  if (!is.store(config.store)) throwError('useStoreMap expects a store')
-  if (config.keys !== undefined && typeof config.keys !== 'function') throwError('useStoreMap expects keys as a function')
-  if (typeof config.fn !== 'function') throwError('useStoreMap expects fn as a function')
+  scope?: Scope,
+): ComputedRef<Result>
+export function useStoreMap<State, Result>(
+  store: Store<State>,
+  fn: (state: State) => Result,
+  opts?: ScopeOptions,
+): ComputedRef<Result>
+export function useStoreMap<State, Result, Keys>(
+  configOrStore: UseStoreMapConfig<State, Result, Keys> | Store<State>,
+  fnOrScope?: ((state: State) => Result) | Scope,
+  opts?: ScopeOptions,
+): ComputedRef<Result> {
+  const shortForm = is.store(configOrStore)
+  const config = (
+    shortForm ? {...opts, store: configOrStore, fn: fnOrScope} : configOrStore
+  ) as UseStoreMapConfig<State, Result, Keys>
+  const positionalScope = shortForm
+    ? undefined
+    : (fnOrScope as Scope | undefined)
 
-  if (scope !== undefined) {
-    devWarn('useStoreMap: the positional scope argument is deprecated, pass it in the config as {scope} instead')
+  if (!is.store(config.store)) throwError('useStoreMap expects a store')
+  if (typeof config.fn !== 'function') {
+    throwError('useStoreMap expects fn as a function')
+  }
+  if (positionalScope !== undefined) devWarn(DEPRECATED_SCOPE)
+
+  const scopeOptions = {
+    scope: positionalScope ?? config.scope,
+    forceScope: config.forceScope,
+  }
+  const scope = resolveScope('useStoreMap', scopeOptions) ?? undefined
+
+  /**
+   * The subscription, the scope and the lifetime of the call are the ones of
+   * `useUnit`: one batched watch per call, disposed with the effect scope.
+   */
+  const state = useUnitBase(
+    'useStoreMap',
+    config.store as any,
+    scopeOptions,
+  ) as unknown as Ref<State>
+
+  const keys = () => toValue(config.keys as MaybeRefOrGetter<Keys>)
+
+  /**
+   * The selector reads the state from the store itself, so it receives the
+   * object effector holds and not the readonly wrapper `useUnit` puts on the
+   * ref. Reading the ref is what makes an update of the store reach here.
+   */
+  const select = (): Result => {
+    state.value
+    const result = config.fn(stateReader(config.store, scope), keys())
+
+    return (result !== undefined ? result : config.defaultValue) as Result
   }
 
-  let _scope =
-    resolveScope('useStoreMap', {
-      scope: scope ?? config.scope,
-      forceScope: config.forceScope,
-    }) ?? undefined
-  let keys = config.keys ? computed(config.keys) : computed(() => undefined as Keys)
-  let updateFilter = config.updateFilter || basicUpdateFilter;
+  /**
+   * A server render has neither updates to filter nor a lifecycle to dispose a
+   * watcher in, and the state keeps changing until the last `onServerPrefetch`
+   * resolves: there the selector itself is the result.
+   */
+  if (isServerRender()) return computed(select)
 
-  let state = stateReader(config.store, _scope)
-  let isShape = typeof state === "object" && Array.isArray(state) === false
+  /**
+   * `updateFilter` decides on the results of `fn`, the way `useStoreMapBase`
+   * in src/react/apiBase.ts does it, so it sits between the selector and the
+   * value the template reads. The watcher is synchronous: an update of the
+   * store has to be visible right after the event that caused it.
+   *
+   * The selector runs inside that watcher, which effector calls, and effector
+   * catches what its watchers throw. A throw is kept here and raised again
+   * when the value is read, where it would land without the watcher, and the
+   * next result that comes through clears it.
+   */
+  const updateFilter = config.updateFilter || basicUpdateFilter
+  const failure = shallowRef<{error: unknown} | null>(null)
 
-  let _ = isShape ? shallowReactive(state as any) : shallowRef(state)
+  const evaluate = (): Result | undefined => {
+    try {
+      const update = select()
+      failure.value = null
 
-  let stop = createWatch({
-    unit: config.store,
-    fn: (value) => {
-      if (isShape) {
-        for (let key in value) {
-          if (updateFilter(value[key] as Result, _[key])) {
-            _[key] = value[key]
-          }
-        }
-      } else {
-        if (value !== undefined && updateFilter(value as unknown as Result, _.value)) {
-          _.value = value
-        }
+      return update
+    } catch (error) {
+      failure.value = {error}
+
+      return undefined
+    }
+  }
+
+  const result = shallowRef(evaluate() as Result)
+
+  watch(
+    [state, keys],
+    () => {
+      const update = evaluate()
+      if (failure.value) return
+      if (updateFilter(update as Result, result.value)) {
+        result.value = update as Result
       }
     },
-    scope: _scope
-  })
-
-  onUnmounted(() => {
-    stop()
-  })
+    {flush: 'sync'},
+  )
 
   return computed(() => {
-    let result = config.fn(isShape ? _ : _.value, keys.value)
-    return result !== undefined ? result : config.defaultValue
+    if (failure.value) throw failure.value.error
+
+    return result.value
   })
 }
