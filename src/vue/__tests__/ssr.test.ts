@@ -4,6 +4,7 @@ import {
   useProvidedScope,
   useStore,
   useUnit,
+  useVModel,
 } from 'effector-vue/composition'
 import {
   allSettled,
@@ -63,6 +64,24 @@ describe('server render', () => {
 
     expect(html).toBe('<p>scoped</p>')
     expect(linksCount(scope)).toBe(0)
+  })
+
+  test('useVModel renders the state of the scope and binds nothing', async () => {
+    const $form = createStore({name: 'global'})
+    const scope = fork({values: [[$form, {name: 'scoped'}]]})
+
+    const App = defineComponent({
+      setup() {
+        const form = useVModel($form)
+        return () => h('p', form.value.name)
+      },
+    })
+
+    const html = await renderSSR(App, {scope})
+
+    expect(html).toBe('<p>scoped</p>')
+    expect(linksCount(scope)).toBe(0)
+    expect(warn).not.toHaveBeenCalled()
   })
 
   test('renders the data loaded in onServerPrefetch', async () => {
