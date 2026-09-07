@@ -21,6 +21,14 @@ export type ScopeOptions = {
   forceScope?: boolean
 }
 
+/**
+ * A value, a ref or a getter. `MaybeRefOrGetter` of Vue 3.3, declared here
+ * because the package accepts any Vue version (`vue: "*"`) and the runtime
+ * falls back to calling a getter and `unref` on the versions without
+ * `toValue`.
+ */
+type MaybeRefOrGetter<T> = T | Ref<T> | (() => T)
+
 type GateConfig<T> = {
   name?: string
   defaultState?: T
@@ -40,16 +48,26 @@ type ExtractStore<T extends Record<string, Store<unknown>>> = {
   [Key in keyof T]: T[Key] extends Store<infer U> ? UnwrapNestedRefs<U> : never
 }
 
+export type UseStoreMapConfig<State, Result, Keys> = {
+  store: Store<State>
+  /** Passed to `fn` as its second argument; a ref or a getter is tracked. */
+  keys?: MaybeRefOrGetter<Keys>
+  fn: (state: State, keys: Keys) => Result
+  /** Decides whether a new result of `fn` replaces the current one. */
+  updateFilter?: (update: Result, current: Result) => boolean
+  /** Used every time `fn` returns undefined. */
+  defaultValue?: Result
+} & ScopeOptions
+
 export function useStoreMap<State, Result, Keys = unknown>(
-  config: {
-    store: Store<State>
-    keys?: () => Keys
-    fn: (state: State, keys: Keys) => Result
-    updateFilter?: (update: Result, current: Result) => boolean
-    defaultValue?: Result
-  } & ScopeOptions,
+  config: UseStoreMapConfig<State, Result, Keys>,
   /** @deprecated pass the scope in the config instead */
   scope?: Scope,
+): ComputedRef<Result>
+export function useStoreMap<State, Result>(
+  store: Store<State>,
+  fn: (state: State) => Result,
+  opts?: ScopeOptions,
 ): ComputedRef<Result>
 export function useVModel<T>(
   vm: Store<T>,
@@ -75,10 +93,7 @@ export function useUnit<State>(
   store: Store<State>,
   opts?: ScopeOptions,
 ): DeepReadonly<Ref<State>>
-export function useUnit(
-  event: Event<void>,
-  opts?: ScopeOptions,
-): () => void
+export function useUnit(event: Event<void>, opts?: ScopeOptions): () => void
 export function useUnit<T>(
   event: Event<T>,
   opts?: ScopeOptions,
@@ -142,9 +157,7 @@ export type EffectorScopePluginOptions = {
   ssr?: boolean
 }
 
-export function EffectorScopePlugin(
-  config: EffectorScopePluginOptions,
-): Plugin
+export function EffectorScopePlugin(config: EffectorScopePluginOptions): Plugin
 export function EffectorScopePlugin(
   app: App,
   config: EffectorScopePluginOptions,
