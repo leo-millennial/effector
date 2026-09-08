@@ -1,5 +1,10 @@
 import * as VueModule from 'vue-next'
-import {InjectionKey, getCurrentInstance} from 'vue-next'
+import {
+  InjectionKey,
+  MaybeRefOrGetter,
+  getCurrentInstance,
+  unref,
+} from 'vue-next'
 
 /**
  * `hasInjectionContext` is Vue 3.3+, while the package declares `vue: "*"` as
@@ -10,6 +15,7 @@ import {InjectionKey, getCurrentInstance} from 'vue-next'
 const VueRuntime = VueModule as {
   hasInjectionContext?: () => boolean
   ssrContextKey?: symbol
+  toValue?: <T>(source: MaybeRefOrGetter<T>) => T
 }
 
 export function hasInjectionContext(): boolean {
@@ -26,3 +32,14 @@ export function hasInjectionContext(): boolean {
  */
 export const ssrContextKey = (VueRuntime.ssrContextKey ??
   Symbol.for('v-scx')) as InjectionKey<unknown>
+
+/**
+ * `toValue` is Vue 3.3+ as well. The fallback repeats it: a function is
+ * called, everything else goes through `unref`.
+ */
+export function toValue<T>(source: MaybeRefOrGetter<T>): T {
+  if (typeof VueRuntime.toValue === 'function') {
+    return VueRuntime.toValue(source)
+  }
+  return typeof source === 'function' ? (source as () => T)() : unref(source)
+}
