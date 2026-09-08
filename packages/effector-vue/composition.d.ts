@@ -21,6 +21,14 @@ export type ScopeOptions = {
   forceScope?: boolean
 }
 
+/**
+ * A value, a ref or a getter. `MaybeRefOrGetter` of Vue 3.3, declared here
+ * because the package accepts any Vue version (`vue: "*"`) and the runtime
+ * falls back to calling a getter and `unref` on the versions without
+ * `toValue`.
+ */
+type MaybeRefOrGetter<T> = T | Ref<T> | (() => T)
+
 type GateConfig<T> = {
   name?: string
   defaultState?: T
@@ -68,17 +76,14 @@ export function useStore<T>(
 export function createGate<Props>(config?: GateConfig<Props>): Gate<Props>
 export function useGate<Props>(
   GateComponent: Gate<Props>,
-  cb?: () => Props,
+  props?: MaybeRefOrGetter<Props>,
   opts?: ScopeOptions,
 ): void
 export function useUnit<State>(
   store: Store<State>,
   opts?: ScopeOptions,
 ): DeepReadonly<Ref<State>>
-export function useUnit(
-  event: Event<void>,
-  opts?: ScopeOptions,
-): () => void
+export function useUnit(event: Event<void>, opts?: ScopeOptions): () => void
 export function useUnit<T>(
   event: Event<T>,
   opts?: ScopeOptions,
@@ -142,9 +147,7 @@ export type EffectorScopePluginOptions = {
   ssr?: boolean
 }
 
-export function EffectorScopePlugin(
-  config: EffectorScopePluginOptions,
-): Plugin
+export function EffectorScopePlugin(config: EffectorScopePluginOptions): Plugin
 export function EffectorScopePlugin(
   app: App,
   config: EffectorScopePluginOptions,
