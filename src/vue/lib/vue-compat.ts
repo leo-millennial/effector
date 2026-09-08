@@ -1,8 +1,11 @@
 import * as VueModule from 'vue-next'
 import {
   InjectionKey,
+  MaybeRefOrGetter,
+  Ref,
   getCurrentInstance,
   ssrContextKey as vueSsrContextKey,
+  unref,
 } from 'vue-next'
 
 /**
@@ -25,3 +28,13 @@ export function hasInjectionContext(): boolean {
 
 /** The key `renderToString` provides its context under. Every Vue 3 exports it. */
 export const ssrContextKey = vueSsrContextKey as InjectionKey<unknown>
+
+/**
+ * `toValue` is Vue 3.3+ as well, and small enough to carry: a getter is
+ * called, a ref is unwrapped, anything else is already a value.
+ */
+export function toValue<T>(source: MaybeRefOrGetter<T>): T {
+  return typeof source === 'function'
+    ? (source as () => T)()
+    : unref(source as Ref<T>)
+}

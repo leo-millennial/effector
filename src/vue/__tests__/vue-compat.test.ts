@@ -1,6 +1,6 @@
-import {createApp, defineComponent, h} from 'vue-next'
+import {createApp, defineComponent, h, ref, shallowReactive} from 'vue-next'
 
-import {hasInjectionContext} from '../lib/vue-compat'
+import {hasInjectionContext, toValue} from '../lib/vue-compat'
 
 jest.mock('vue', () => require('vue-next'))
 
@@ -37,5 +37,25 @@ describe('hasInjectionContext without the one of Vue', () => {
     createApp(App).mount(document.createElement('div'))
 
     expect(result).toBe(true)
+  })
+})
+
+/** `toValue` is carried here, so every Vue version runs this code. */
+describe('toValue', () => {
+  test('calls a getter', () => {
+    const source = ref(1)
+
+    expect(toValue(() => source.value + 1)).toBe(2)
+  })
+
+  test('unwraps a ref', () => {
+    expect(toValue(ref('value'))).toBe('value')
+  })
+
+  test('returns a value as it is', () => {
+    const state = shallowReactive({count: 0})
+
+    expect(toValue(state)).toBe(state)
+    expect(toValue(1)).toBe(1)
   })
 })
