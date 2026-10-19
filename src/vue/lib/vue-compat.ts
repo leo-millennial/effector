@@ -1,5 +1,9 @@
 import * as VueModule from 'vue-next'
-import {getCurrentInstance} from 'vue-next'
+import {
+  InjectionKey,
+  getCurrentInstance,
+  ssrContextKey as vueSsrContextKey,
+} from 'vue-next'
 
 /**
  * `hasInjectionContext` arrived in Vue 3.3, while the package declares
@@ -18,3 +22,6 @@ export function hasInjectionContext(): boolean {
 
   return Boolean(getCurrentInstance())
 }
+
+/** The key `renderToString` provides its context under. Every Vue 3 exports it. */
+export const ssrContextKey = vueSsrContextKey as InjectionKey<unknown>
